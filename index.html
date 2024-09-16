@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple FPS Game</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            display: block;
+        }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">
+        <h3>Simple FPS Game</h3>
+        <p>W/A/S/D: Move</p>
+        <p>Mouse: Look Around</p>
+        <p>Left Click: Shoot</p>
+        <p>Click on the canvas to lock pointer and play.</p>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Include Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Include PointerLockControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/controls/PointerLockControls.js"></script>
+
+    <script>
+        // Basic Setup
+        const canvas = document.getElementById('gameCanvas');
+        const renderer = new THREE.WebGLRenderer({ canvas });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb); // Sky blue background
+
+        // Camera and Controls
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const controls = new THREE.PointerLockControls(camera, document.body);
+
+        document.body.addEventListener('click', () => {
+            controls.lock();
+        }, false);
+
+        // Light
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444);
+        light.position.set(0, 200, 0);
+        scene.add(light);
+
+        // Floor
+        const floorGeometry = new THREE.PlaneGeometry(200, 200);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 }); // Forest green
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = - Math.PI / 2;
+        scene.add(floor);
+
+        // Simple Box Targets
+        const boxGeometry = new THREE.BoxGeometry(2,2,2);
+        const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+
+        const targets = [];
+        for(let i=0; i<10; i++) {
+            const box = new THREE.Mesh(boxGeometry, boxMaterial);
+            box.position.set(
+                (Math.random() - 0.5) * 100,
+                1,
+                (Math.random() - 0.5) * 100
+            );
+            scene.add(box);
+            targets.push(box);
+        }
+
+        camera.position.y = 2; // Player height
+
+        // Movement Controls
+        const move = { forward: false, backward: false, left: false, right: false };
+        const velocity = new THREE.Vector3();
+        const speed = 10.0;
+
+        const onKeyDown = function (event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    move.forward = true;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    move.left = true;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    move.backward = true;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    move.right = true;
+                    break;
+            }
+        };
+
+        const onKeyUp = function (event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    move.forward = false;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    move.left = false;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    move.backward = false;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    move.right = false;
+                    break;
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown, false);
+        document.addEventListener('keyup', onKeyUp, false);
+
+        // Shooting Mechanism
+        const raycaster = new THREE.Raycaster();
+        const shootSound = new Audio('https://www.soundjay.com/mechanical/sounds/mechanical-gun-shot-02.mp3'); // Optional sound
+
+        function onShoot() {
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            const intersects = raycaster.intersectObjects(targets);
+            if(intersects.length > 0) {
+                const hit = intersects[0].object;
+                scene.remove(hit);
+                targets.splice(targets.indexOf(hit),1);
+                // Optionally play a sound
+                // shootSound.play();
+            }
+        }
+
+        document.addEventListener('mousedown', (event) => {
+            if(event.button === 0) { // Left click
+                onShoot();
+            }
+        }, false);
+
+        // Resize Handling
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize(){
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation Loop
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            velocity.x -= velocity.x * 10.0 * delta;
+            velocity.z -= velocity.z * 10.0 * delta;
+
+            if (move.forward) velocity.z -= speed * delta;
+            if (move.backward) velocity.z += speed * delta;
+            if (move.left) velocity.x -= speed * delta;
+            if (move.right) velocity.x += speed * delta;
+
+            controls.moveRight( velocity.x * delta );
+            controls.moveForward( velocity.z * delta );
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
